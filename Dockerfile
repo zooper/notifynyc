@@ -12,7 +12,7 @@ WORKDIR /notifynyc
 COPY requirements.txt /notifynyc
 COPY run.sh /run.sh
 RUN pip install --no-cache-dir -r requirements.txt
-RUN curl https://raw.githubusercontent.com/zooper/notifynyc/master/notify-nyc.py -o /notifynyc/notify-nyc.py
+# RUN curl https://raw.githubusercontent.com/zooper/notifynyc/master/notify-nyc.py -o /notifynyc/notify-nyc.py
 # Copying src code to Container
 # COPY . /notifynyc/
 

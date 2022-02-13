@@ -1,6 +1,5 @@
 import feedparser
 import telegram
-import configparser
 import time
 import os
 
@@ -24,13 +23,15 @@ def run_script():
             message = (post["description"])
             log = open("/log/log.txt", "a")
             log.write(published + "\n")
-            msg = (message.split(sep, 1)[0])
+            msg = post['title']
+            msg += (message.split(sep, 1)[0])
             bot.send_message(
                     chat_id=chat_id,
                     text = msg,
                     parse_mode=telegram.ParseMode.HTML
                     )
+            print(msg)
 
 while True:
     run_script()
-    time.sleep(120)
+    time.sleep(300)
