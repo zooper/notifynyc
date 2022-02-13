@@ -2,7 +2,8 @@ FROM python:3.6
 
 
 # Creating Application Source Code Directory
-RUN mkdir -p /notifynyc/logs
+RUN mkdir -p /notifynyc
+RUN mkdir /log
 
 # Setting Home Directory for containers
 WORKDIR /notifynyc
