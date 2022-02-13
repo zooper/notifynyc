@@ -20,9 +20,9 @@ sep = "To view this message"
 def run_script():
     for post in d.entries:
         published = (post["published"])
-        if not str(published) in open("/notifynyc/logs/log.txt").read():
+        if not str(published) in open("/log/log.txt").read():
             message = (post["description"])
-            log = open("/notifynyc/logs/log.txt", "a")
+            log = open("/log/log.txt", "a")
             log.write(published + "\n")
             msg = (message.split(sep, 1)[0])
             bot.send_message(
