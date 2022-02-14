@@ -11,12 +11,12 @@ bot = telegram.Bot(token=token)
 chat_id = chat_id
 
 url = 'https://a858-nycnotify.nyc.gov/RSS/NotifyNYC?lang=en'
-d = feedparser.parse(url)
 
 # Remove everything in the message that contains below. 
 sep = "To view this message"
 
 def run_script():
+    d = feedparser.parse(url)
     for post in d.entries:
         published = (post["published"])
         if not str(published) in open("/log/log.txt").read():
