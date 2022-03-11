@@ -20,7 +20,7 @@ def run_script():
     for post in d.entries:
         published = (post["published"])
         if not str(published) in open("/log/log.txt").read():
-            message = (post["description"])
+            message = (post["description"] + "\n")
             log = open("/log/log.txt", "a")
             log.write(published + "\n")
             msg = post['title']
