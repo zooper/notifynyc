@@ -1,5 +1,5 @@
 #!/bin/bash
 
-curl https://raw.githubusercontent.com/zooper/notifynyc/master/notify-nyc.py -o /notifynyc/notify-nyc.py
+curl http://gitea.srv.linuxburken.se:3000/zooper/notifynyc/raw/branch/master/notify-nyc.py -o /notifynyc/notify-nyc.py
 touch /log/log.txt
 python /notifynyc/notify-nyc.py
