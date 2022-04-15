@@ -23,7 +23,7 @@ def run_script():
             message = (post["description"] + "\n")
             log = open("/log/log.txt", "a")
             log.write(published + "\n")
-            msg = post['title']
+            msg = post['title'] + "\n"
             msg += (message.split(sep, 1)[0])
             bot.send_message(
                     chat_id=chat_id,
