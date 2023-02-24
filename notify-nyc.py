@@ -12,8 +12,9 @@ chat_id = chat_id
 
 url = 'https://a858-nycnotify.nyc.gov/RSS/NotifyNYC?lang=en'
 
-# Remove everything in the message that contains below. 
+# Remove everything in the message that contains below.
 sep = "To view this message"
+
 
 def run_script():
     d = feedparser.parse(url)
@@ -27,10 +28,11 @@ def run_script():
             msg += (message.split(sep, 1)[0])
             bot.send_message(
                     chat_id=chat_id,
-                    text = msg,
+                    text=msg,
                     parse_mode=telegram.ParseMode.HTML
                     )
             print(msg)
+
 
 while True:
     run_script()
