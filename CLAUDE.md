@@ -24,7 +24,10 @@ LOG_FILE=./log.txt ./notifynyc
 - `MATRIX_URL` — Matrix homeserver base URL (e.g. `https://chat.as215855.net`)
 - `MATRIX_TOKEN` — Matrix access token for the bot account (`@notifynyc-bot:as215855.net`)
 - `MATRIX_ROOM` — Matrix room ID to send messages to
+- `SLACK_WEBHOOK_URL` — (optional) Slack incoming webhook for `#notifynyc` (`C0C451QLJLW`); Slack failures do not stop Matrix delivery
 - `LOG_FILE` — (optional) override the log file path, defaults to `/log/log.txt`
+
+The Slack webhook is stored in OpenBao at `secret/notifynyc`, field `slack_webhook_url`, and is rendered as `SLACK_WEBHOOK_URL` in `/etc/notifynyc/env` on the service host. The value must never be committed or logged.
 
 ## Deployment
 
@@ -35,6 +38,8 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o notifynyc-linux
 scp notifynyc-linux root@192.168.0.21:/tmp/notifynyc
 ssh root@192.168.0.21 "pct push 142 /tmp/notifynyc /usr/local/bin/notifynyc --perms 755 && pct exec 142 -- systemctl restart notifynyc"
 ```
+
+The service unit is `/etc/systemd/system/notifynyc.service`; its optional Slack configuration is loaded from `/etc/notifynyc/env`.
 
 ## Architecture
 

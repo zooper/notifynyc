@@ -15,12 +15,13 @@ import (
 )
 
 const (
-	feedURL      = "https://feeds.everbridge.net/feeds/453003085617722/rss/rss.xml"
-	defaultLog   = "/log/log.txt"
-	pollInterval = 5 * time.Minute
+	defaultFeedURL = "https://feeds.everbridge.net/feeds/453003085617722/rss/rss.xml"
+	defaultLog     = "/log/log.txt"
+	pollInterval   = 5 * time.Minute
 )
 
 var logFile = defaultLog
+var feedURL = defaultFeedURL
 
 func init() {
 	if v := os.Getenv("LOG_FILE"); v != "" {
@@ -45,19 +46,20 @@ func main() {
 	matrixURL := os.Getenv("MATRIX_URL")
 	token := os.Getenv("MATRIX_TOKEN")
 	roomID := os.Getenv("MATRIX_ROOM")
+	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
 	if matrixURL == "" || token == "" || roomID == "" {
 		log.Fatal("MATRIX_URL, MATRIX_TOKEN, and MATRIX_ROOM environment variables are required")
 	}
 
 	for {
-		if err := poll(matrixURL, token, roomID); err != nil {
+		if err := poll(matrixURL, token, roomID, slackWebhookURL); err != nil {
 			log.Printf("poll error: %v", err)
 		}
 		time.Sleep(pollInterval)
 	}
 }
 
-func poll(matrixURL, token, roomID string) error {
+func poll(matrixURL, token, roomID, slackWebhookURL string) error {
 	resp, err := http.Get(feedURL)
 	if err != nil {
 		return fmt.Errorf("fetch feed: %w", err)
@@ -88,6 +90,11 @@ func poll(matrixURL, token, roomID string) error {
 		if err := sendMatrix(matrixURL, token, roomID, msg); err != nil {
 			return fmt.Errorf("send matrix: %w", err)
 		}
+		if slackWebhookURL != "" {
+			if err := sendSlack(slackWebhookURL, msg); err != nil {
+				log.Printf("send slack: %v", err)
+			}
+		}
 		log.Printf("sent: %s", item.Title)
 
 		if err := appendSeen(item.PubDate); err != nil {
@@ -95,6 +102,30 @@ func poll(matrixURL, token, roomID string) error {
 		}
 	}
 
+	return nil
+}
+
+func sendSlack(webhookURL, text string) error {
+	payload, err := json.Marshal(map[string]string{"text": text})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, webhookURL, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("create request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("Slack API %d", resp.StatusCode)
+	}
 	return nil
 }
 
