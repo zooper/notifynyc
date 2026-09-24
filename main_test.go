@@ -72,7 +72,7 @@ func TestPollMatrixOnlyWhenSlackUnconfigured(t *testing.T) {
 	}
 }
 
-func TestPollSlackFailureDoesNotPreventMatrixOrLeakWebhook(t *testing.T) {
+func TestPollSlackFailureIsAuthoritativeAndDoesNotLeakWebhook(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/feed":
@@ -92,11 +92,12 @@ func TestPollSlackFailureDoesNotPreventMatrixOrLeakWebhook(t *testing.T) {
 	feedURL = server.URL + "/feed"
 	t.Cleanup(func() { feedURL = oldFeedURL })
 
-	if err := poll(server.URL, "token", "room", server.URL+"/slack"); err != nil {
-		t.Fatal(err)
+	err := poll(server.URL, "token", "room", server.URL+"/slack")
+	if err == nil {
+		t.Fatal("expected Slack delivery error")
 	}
-	if err := sendSlack(server.URL+"/slack", "test"); err == nil || strings.Contains(err.Error(), server.URL) {
-		t.Fatalf("unexpected Slack error: %v", err)
+	if strings.Contains(err.Error(), server.URL) {
+		t.Fatalf("Slack error contains webhook URL: %v", err)
 	}
 }
 

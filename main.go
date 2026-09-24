@@ -87,13 +87,15 @@ func poll(matrixURL, token, roomID, slackWebhookURL string) error {
 		}
 
 		msg := item.Title + "\n" + truncateMessage(item.Description)
-		if err := sendMatrix(matrixURL, token, roomID, msg); err != nil {
-			return fmt.Errorf("send matrix: %w", err)
-		}
 		if slackWebhookURL != "" {
 			if err := sendSlack(slackWebhookURL, msg); err != nil {
-				log.Printf("send slack: %v", err)
+				return fmt.Errorf("send slack: %w", err)
 			}
+			if err := sendMatrix(matrixURL, token, roomID, msg); err != nil {
+				log.Printf("send matrix: %v", err)
+			}
+		} else if err := sendMatrix(matrixURL, token, roomID, msg); err != nil {
+			return fmt.Errorf("send matrix: %w", err)
 		}
 		log.Printf("sent: %s", item.Title)
 

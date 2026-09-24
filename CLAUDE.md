@@ -24,7 +24,7 @@ LOG_FILE=./log.txt ./notifynyc
 - `MATRIX_URL` — Matrix homeserver base URL (e.g. `https://chat.as215855.net`)
 - `MATRIX_TOKEN` — Matrix access token for the bot account (`@notifynyc-bot:as215855.net`)
 - `MATRIX_ROOM` — Matrix room ID to send messages to
-- `SLACK_WEBHOOK_URL` — (optional) Slack incoming webhook for `#notifynyc` (`C0C451QLJLW`); Slack failures do not stop Matrix delivery
+- `SLACK_WEBHOOK_URL` — (optional) Slack incoming webhook for `#notifynyc` (`C0C451QLJLW`); when set, Slack delivery is authoritative and Matrix is secondary
 - `LOG_FILE` — (optional) override the log file path, defaults to `/log/log.txt`
 
 The Slack webhook is stored in OpenBao at `secret/notifynyc`, field `slack_webhook_url`, and is rendered as `SLACK_WEBHOOK_URL` in `/etc/notifynyc/env` on the service host. The value must never be committed or logged.
