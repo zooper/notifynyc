@@ -1,0 +1,29 @@
+# REVIEW ONLY: not installed or activated by this change.
+[Unit]
+Description=NotifyNYC independent RSS archive
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=notifynyc-archive
+Group=notifynyc-archive
+StateDirectory=notifynyc-archive
+StateDirectoryMode=0700
+RuntimeDirectory=notifynyc-archive
+RuntimeDirectoryMode=0700
+UMask=0077
+Environment=ARCHIVE_ONLY=true
+Environment=ARCHIVE_DB=/var/lib/notifynyc-archive/history.sqlite
+Environment=ARCHIVE_SOCKET=/run/notifynyc-archive/api.sock
+ExecStart=/usr/local/bin/notifynyc-archive
+Restart=on-failure
+RestartSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target
