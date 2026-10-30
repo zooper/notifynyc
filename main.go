@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -22,6 +23,8 @@ const (
 
 var logFile = defaultLog
 var feedURL = defaultFeedURL
+var history *Archive
+var archiveOnly bool
 
 func init() {
 	if v := os.Getenv("LOG_FILE"); v != "" {
@@ -30,12 +33,16 @@ func init() {
 }
 
 type RSS struct {
+	XMLName xml.Name `xml:"rss"`
 	Channel struct {
 		Items []Item `xml:"item"`
 	} `xml:"channel"`
 }
 
 type Item struct {
+	GUID        string `xml:"guid"`
+	Link        string `xml:"link"`
+	RawXML      string `xml:",innerxml"`
 	Title       string `xml:"title"`
 	Description string `xml:"description"`
 	PubDate     string `xml:"pubDate"`
@@ -43,12 +50,43 @@ type Item struct {
 }
 
 func main() {
-	matrixURL := os.Getenv("MATRIX_URL")
-	token := os.Getenv("MATRIX_TOKEN")
-	roomID := os.Getenv("MATRIX_ROOM")
-	slackWebhookURL := os.Getenv("SLACK_WEBHOOK_URL")
-	if matrixURL == "" || token == "" || roomID == "" {
-		log.Fatal("MATRIX_URL, MATRIX_TOKEN, and MATRIX_ROOM environment variables are required")
+	archiveOnly = os.Getenv("ARCHIVE_ONLY") == "true"
+	if path := os.Getenv("ARCHIVE_DB"); path != "" {
+		var err error
+		history, err = openArchive(path)
+		if err != nil {
+			log.Fatal("cannot open archive database")
+		}
+		defer history.db.Close()
+	}
+	if archiveOnly && history == nil {
+		log.Fatal("ARCHIVE_ONLY requires ARCHIVE_DB")
+	}
+	if socket := os.Getenv("ARCHIVE_SOCKET"); socket != "" {
+		if history == nil {
+			log.Fatal("ARCHIVE_SOCKET requires ARCHIVE_DB")
+		}
+		server, listener, err := history.serveSocket(socket)
+		if err != nil {
+			log.Fatal("cannot open private archive socket")
+		}
+		defer listener.Close()
+		go func() {
+			if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
+				log.Print("archive API stopped")
+			}
+		}()
+	}
+
+	var matrixURL, token, roomID, slackWebhookURL string
+	if !archiveOnly {
+		matrixURL = os.Getenv("MATRIX_URL")
+		token = os.Getenv("MATRIX_TOKEN")
+		roomID = os.Getenv("MATRIX_ROOM")
+		slackWebhookURL = os.Getenv("SLACK_WEBHOOK_URL")
+		if matrixURL == "" || token == "" || roomID == "" {
+			log.Fatal("MATRIX_URL, MATRIX_TOKEN, and MATRIX_ROOM environment variables are required")
+		}
 	}
 
 	for {
@@ -60,22 +98,43 @@ func main() {
 }
 
 func poll(matrixURL, token, roomID, slackWebhookURL string) error {
-	resp, err := http.Get(feedURL)
+	if history != nil {
+		history.failure("feed_fetch_failed")
+	}
+	client := http.DefaultClient
+	if archiveOnly {
+		client = &http.Client{Timeout: 30 * time.Second}
+	}
+	resp, err := client.Get(feedURL)
 	if err != nil {
 		return fmt.Errorf("fetch feed: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("feed HTTP %d", resp.StatusCode)
+	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 16*1024*1024+1))
 	if err != nil {
 		return fmt.Errorf("read feed: %w", err)
 	}
 
+	if len(body) > 16*1024*1024 {
+		return fmt.Errorf("feed exceeds 16 MiB")
+	}
 	var rss RSS
 	if err := xml.Unmarshal(body, &rss); err != nil {
 		return fmt.Errorf("parse feed: %w", err)
 	}
 
+	if history != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		archiveError(history.ingest(ctx, rss.Channel.Items, time.Now()))
+		cancel()
+	}
+	if archiveOnly {
+		return nil
+	}
 	seen := loadSeen()
 
 	for _, item := range rss.Channel.Items {
@@ -143,20 +202,19 @@ func sendMatrix(matrixURL, token, roomID, text string) error {
 
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(payload))
 	if err != nil {
-		return err
+		return fmt.Errorf("create Matrix request")
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("Matrix request failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("matrix API %d: %s", resp.StatusCode, body)
+		return fmt.Errorf("matrix API %d", resp.StatusCode)
 	}
 	return nil
 }
