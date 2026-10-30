@@ -43,10 +43,22 @@ The service unit is `/etc/systemd/system/notifynyc.service`; its optional Slack 
 
 ## Architecture
 
-Single-file Go binary (`main.go`) with no external dependencies. Uses `encoding/xml` for RSS parsing and `net/http` to call the Matrix client-server API directly.
+Go binary with notification code in `main.go` and optional SQLite archive/API in `archive.go` and `api.go`. Uses `encoding/xml` for RSS parsing and `net/http` to call the Matrix client-server API directly.
 
 ## Key behaviors
 
 - Language filter: only items with `[English]` in the `<author>` field are forwarded (the Everbridge feed includes all languages).
 - Deduplication: each entry's `PubDate` is checked against the log file.
 - Message truncation: everything after "To view this message" is stripped from the RSS description.
+
+## Searchable archive (opt-in)
+
+See `docs/history.md` for behavior, API, permissions, backup, rollback and the
+unresolved deployed dirty-build boundary. `ARCHIVE_ONLY=true` with `ARCHIVE_DB`
+runs independent ingestion without accessing notification credentials/state.
+`ARCHIVE_SOCKET` optionally enables a private Unix-socket read-only API; no TCP
+listener is implemented. The proposed separate service is review-only in
+`deploy/notifynyc-archive.service`. No deployment is authorized by these examples.
+The archive uses pinned pure-Go modernc.org/sqlite; Docker copies all Go sources.
+MCPHub transport/integration remains separately reviewed in
+`docs/mcp-adapter-proposal.md`.
